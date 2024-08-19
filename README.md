@@ -9,9 +9,13 @@ VLESS_NODES_ENV //节点信心链接txt json
    格式:
        [
         "vless://",
-        "trojan://".,
+        
+        "trojan://",
+        
         "vmess://"
+        
         ]
+        
         
 API_URL_ENV //优选ip链接支持CMLIU
 
