@@ -1,6 +1,7 @@
 环境变量
 
 AUTH_TOKEN_ENV   //入口验证
+  使用：域名/token
 
 VLESS_NODES_ENV //节点信心链接txt json
    格式:
