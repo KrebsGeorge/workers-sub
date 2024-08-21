@@ -1,18 +1,7 @@
+// 确保只声明一次环境变量
 const API_URL = API_URL_ENV; // 从环境变量中获取 API URL
-const VLESS_NODES_URL = VLESS_NODES_ENV; // 从环境变量中获取 VLESS 节点 JSON 数组的 URL
+const VLESS_NODES = JSON.parse(VLESS_NODES_ENV); // 从环境变量中获取 VLESS 节点 JSON 数组
 const AUTH_TOKEN = AUTH_TOKEN_ENV; // 从环境变量中获取授权令牌
-
-// 从 VLESS_NODES_URL 获取 VLESS 节点配置
-async function fetchVLESSNodes() {
-    const response = await fetch(VLESS_NODES_URL);
-    const text = await response.text();
-    try {
-        // 尝试将获取到的内容解析为 JSON 数组
-        return JSON.parse(text);
-    } catch (error) {
-        throw new Error("Failed to parse VLESS nodes configuration.");
-    }
-}
 
 // 获取优选 IP 和端口列表
 async function fetchPreferredIPs() {
@@ -46,37 +35,14 @@ function replaceVLESSNode(vlessNode, ip, port) {
     return `${parts[0]}@${newRest}`;
 }
 
-// 构建 HTML 内容，只显示替换结果
-function buildHtmlResponse(updatedNodes) {
-    let html = `
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Updated VLESS Nodes</title>
-            <style>
-                body { font-family: Arial, sans-serif; margin: 20px; }
-                pre { white-space: pre-wrap; word-wrap: break-word; }
-                hr { margin: 20px 0; }
-            </style>
-        </head>
-        <body>
-            <h1>Updated VLESS Nodes</h1>
-            <div>
-    `;
+// 将字符串转换为 Base64 编码
+function toBase64(str) {
+    return btoa(unescape(encodeURIComponent(str)));
+}
 
-    updatedNodes.forEach(node => {
-        html += `<pre>${node.updated}</pre><hr>`;
-    });
-
-    html += `
-            </div>
-        </body>
-        </html>
-    `;
-
-    return html;
+// 构建纯文本内容，只显示 Base64 编码后的替换结果
+function buildTxtResponse(updatedNodes) {
+    return updatedNodes.map(node => toBase64(node.updated)).join('\n');
 }
 
 addEventListener('fetch', event => {
@@ -95,12 +61,6 @@ async function handleRequest(request) {
     }
 
     try {
-        // 获取 VLESS 节点配置
-        const VLESS_NODES = await fetchVLESSNodes();
-        if (VLESS_NODES.length === 0) {
-            return new Response('No VLESS nodes available', { status: 500 });
-        }
-
         // 获取优选 IP 和端口列表
         const preferredIPs = await fetchPreferredIPs();
         if (preferredIPs.length === 0) {
@@ -117,10 +77,10 @@ async function handleRequest(request) {
             });
         });
 
-        // 生成 HTML 内容并返回
-        const htmlResponse = buildHtmlResponse(updatedNodes);
-        return new Response(htmlResponse, {
-            headers: { 'Content-Type': 'text/html' }
+        // 生成纯文本内容并返回
+        const txtResponse = buildTxtResponse(updatedNodes);
+        return new Response(txtResponse, {
+            headers: { 'Content-Type': 'text/plain' }
         });
     } catch (error) {
         return new Response(`Error: ${error.message}`, { status: 500 });
