@@ -37,7 +37,7 @@ function replaceVLESSNode(vlessNode, ip, port) {
 
 // 构建纯文本内容，只显示替换结果
 function buildTextResponse(updatedNodes) {
-    let textResponse = 'Updated VLESS Nodes:\n\n';
+    let textResponse = '\n\n';
     
     updatedNodes.forEach(node => {
         textResponse += `${node.updated}\n\n`;
