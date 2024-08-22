@@ -19,3 +19,4 @@ API_URL_ENV //优选ip链接支持CMLIU
   txt格式:
   
      ip:prot#注释
+workers链接可以直接作为订阅链接
