@@ -35,14 +35,15 @@ function replaceVLESSNode(vlessNode, ip, port) {
     return `${parts[0]}@${newRest}`;
 }
 
-// 将字符串转换为 Base64 编码
-function toBase64(str) {
-    return btoa(unescape(encodeURIComponent(str)));
-}
+// 构建纯文本内容，只显示替换结果
+function buildTextResponse(updatedNodes) {
+    let textResponse = 'Updated VLESS Nodes:\n\n';
+    
+    updatedNodes.forEach(node => {
+        textResponse += `${node.updated}\n\n`;
+    });
 
-// 构建纯文本内容，只显示 Base64 编码后的替换结果
-function buildTxtResponse(updatedNodes) {
-    return updatedNodes.map(node => toBase64(node.updated)).join('\n');
+    return textResponse;
 }
 
 addEventListener('fetch', event => {
@@ -78,8 +79,8 @@ async function handleRequest(request) {
         });
 
         // 生成纯文本内容并返回
-        const txtResponse = buildTxtResponse(updatedNodes);
-        return new Response(txtResponse, {
+        const textResponse = buildTextResponse(updatedNodes);
+        return new Response(textResponse, {
             headers: { 'Content-Type': 'text/plain' }
         });
     } catch (error) {
