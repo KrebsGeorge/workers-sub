@@ -14,7 +14,7 @@ VLESS_NODES_ENV //节点信心链接txt json
         ]
         
         
-API_URL_ENV //优选ip链接支持CMLIU
+API_URL_ENV //优选ip链接
 
   txt格式:
   
