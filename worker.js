@@ -1,26 +1,22 @@
-// 确保只声明一次环境变量
+// 确保环境变量只声明一次
 const API_URL = API_URL_ENV; // 从环境变量中获取 API URL
 const VLESS_NODES = JSON.parse(VLESS_NODES_ENV); // 从环境变量中获取 VLESS 节点 JSON 数组
 const AUTH_TOKEN = AUTH_TOKEN_ENV; // 从环境变量中获取授权令牌
+const CUSTOM_PORT = CUSTOM_PORT_ENV || 'default_port_value'; // 从环境变量中获取自定义端口，如果未定义则使用默认值
 
-// 获取优选 IP 和端口列表
+// 获取优选 IP 列表，不再使用端口
 async function fetchPreferredIPs() {
     const response = await fetch(API_URL);
     const text = await response.text();
-    // 假设每行格式为 "IP:Port" 或 "IP:Port # comment"
+    // 假设每行格式为 "IP" 或 "IP # comment"
     return text.split('\n').map(line => {
-        // 去掉注释部分
         const cleanLine = line.split('#')[0].trim();
-        const parts = cleanLine.split(':');
-        if (parts.length === 2) {
-            return { ip: parts[0].trim(), port: parts[1].trim() };
-        }
-        return null;
-    }).filter(entry => entry && entry.ip && entry.port);
+        return cleanLine.length > 0 ? cleanLine : null;
+    }).filter(ip => ip);
 }
 
-// 替换 VLESS 节点中的 address 和 port
-function replaceVLESSNode(vlessNode, ip, port) {
+// 替换 VLESS 节点中的 address 和使用自定义端口
+function replaceVLESSNode(vlessNode, ip) {
     const parts = vlessNode.split('@');
     if (parts.length < 2) return vlessNode;
 
@@ -28,7 +24,7 @@ function replaceVLESSNode(vlessNode, ip, port) {
     const oldAddressPort = addressPart.split(':');
     if (oldAddressPort.length < 2) return vlessNode;
 
-    const newAddressPort = `${ip}:${port}`;
+    const newAddressPort = `${ip}:${CUSTOM_PORT}`;
     const newAddressPart = addressPart.replace(`${oldAddressPort[0]}:${oldAddressPort[1]}`, newAddressPort);
     const newRest = parts[1].replace(addressPart, newAddressPart);
 
@@ -37,13 +33,13 @@ function replaceVLESSNode(vlessNode, ip, port) {
 
 // 构建纯文本内容，只显示替换结果
 function buildTextResponse(updatedNodes) {
-    let textResponse = '\n\n';
+    let textResponse = '';
     
     updatedNodes.forEach(node => {
         textResponse += `${node.updated}\n\n`;
     });
 
-    return textResponse;
+    return textResponse.trim();
 }
 
 addEventListener('fetch', event => {
@@ -62,18 +58,18 @@ async function handleRequest(request) {
     }
 
     try {
-        // 获取优选 IP 和端口列表
+        // 获取优选 IP 列表
         const preferredIPs = await fetchPreferredIPs();
         if (preferredIPs.length === 0) {
             return new Response('No IPs available', { status: 500 });
         }
 
-        // 对每个 VLESS 节点使用所有 IP 进行替换
+        // 对每个 VLESS 节点使用所有 IP 进行替换，使用自定义端口
         let updatedNodes = [];
-        preferredIPs.forEach(({ ip, port }) => {
+        preferredIPs.forEach(ip => {
             VLESS_NODES.forEach(node => {
                 updatedNodes.push({
-                    updated: replaceVLESSNode(node, ip, port)
+                    updated: replaceVLESSNode(node, ip)
                 });
             });
         });
