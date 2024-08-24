@@ -27,3 +27,5 @@ workers链接可以直接作为订阅链接
 ④
 CUSTOM_PORT_ENV
 自定义端口
+
+worker.js=ip:prot  worker-prot.js=aip ip
