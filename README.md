@@ -16,7 +16,7 @@ VLESS_NODES_ENV //节点信心链接txt json
  ③       
 API_URL_ENV //优选ip链接 支持CMLIU的优选IP如https://addressesapi.090227.xyz/ct
 
-  txt格式:
+  文本格式:
   
      ip:prot#注释
 workers链接可以直接作为订阅链接
