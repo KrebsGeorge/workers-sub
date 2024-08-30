@@ -4,18 +4,29 @@ const VLESS_NODES = JSON.parse(VLESS_NODES_ENV); // 从环境变量中获取 VLE
 const AUTH_TOKEN = AUTH_TOKEN_ENV; // 从环境变量中获取授权令牌
 
 // 获取优选 IP 和端口列表
-async function fetchPreferredIPs() {
+async function fetchPreferredIP() {
     const response = await fetch(API_URL);
+    if (!response.ok) {
+        throw new Error('Failed to fetch IPs');
+    }
     const text = await response.text();
-    // 假设每行格式为 "IP:Port" 或 "IP:Port # comment"
-    return text.split('\n').map(line => {
+    const lines = text.split('\n').map(line => {
         const cleanLine = line.split('#')[0].trim();
         const parts = cleanLine.split(':');
         if (parts.length === 2) {
             return { ip: parts[0].trim(), port: parts[1].trim() };
+        } else if (parts.length === 1) {
+            return { ip: parts[0].trim(), port: null };
         }
         return null;
-    }).filter(entry => entry && entry.ip && entry.port);
+    }).filter(entry => entry && entry.ip);
+
+    if (lines.length === 0) {
+        throw new Error('No valid IPs found');
+    }
+
+    // 随机选择一个 IP 和（可能的）端口
+    return lines[Math.floor(Math.random() * lines.length)];
 }
 
 // 替换 VLESS 节点中的 address 和 port
@@ -27,7 +38,7 @@ function replaceVLESSNode(vlessNode, ip, port) {
     const oldAddressPort = addressPart.split(':');
     if (oldAddressPort.length < 2) return vlessNode;
 
-    const newAddressPort = `${ip}:${port}`;
+    const newAddressPort = port ? `${ip}:${port}` : `${ip}:${oldAddressPort[1]}`;
     const newAddressPart = addressPart.replace(`${oldAddressPort[0]}:${oldAddressPort[1]}`, newAddressPort);
     const newRest = parts[1].replace(addressPart, newAddressPart);
 
@@ -36,13 +47,7 @@ function replaceVLESSNode(vlessNode, ip, port) {
 
 // 构建纯文本内容，只显示替换结果
 function buildTextResponse(updatedNodes) {
-    let textResponse = '';
-    
-    updatedNodes.forEach(node => {
-        textResponse += `${node.updated}\n\n`;
-    });
-
-    return textResponse.trim();
+    return updatedNodes.map(node => node.updated).join('\n\n').trim();
 }
 
 addEventListener('fetch', event => {
@@ -61,21 +66,13 @@ async function handleRequest(request) {
     }
 
     try {
-        // 获取优选 IP 和端口列表
-        const preferredIPs = await fetchPreferredIPs();
-        if (preferredIPs.length === 0) {
-            return new Response('No IPs available', { status: 500 });
-        }
+        // 获取优选 IP 和端口
+        const { ip, port } = await fetchPreferredIP();
 
-        // 对每个 VLESS 节点使用所有 IP 进行替换
-        let updatedNodes = [];
-        preferredIPs.forEach(({ ip, port }) => {
-            VLESS_NODES.forEach(node => {
-                updatedNodes.push({
-                    updated: replaceVLESSNode(node, ip, port)
-                });
-            });
-        });
+        // 对每个 VLESS 节点替换 IP 和端口
+        const updatedNodes = VLESS_NODES.map(node => ({
+            updated: replaceVLESSNode(node, ip, port)
+        }));
 
         // 生成纯文本内容并返回
         const textResponse = buildTextResponse(updatedNodes);
