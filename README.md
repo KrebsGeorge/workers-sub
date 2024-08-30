@@ -22,6 +22,7 @@ API_URL_ENV //优选ip链接 支持CMLIU的优选IP如https://addressesapi.09022
   文本格式:
   
      ip:prot#注释
-workers链接可以直接作为订阅链接
 如果链接中只有IP则只替换IP，如果链接中有IP和端口则一起替换
+workers链接可以直接作为订阅链接
+
 
