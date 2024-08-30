@@ -23,9 +23,5 @@ API_URL_ENV //优选ip链接 支持CMLIU的优选IP如https://addressesapi.09022
   
      ip:prot#注释
 workers链接可以直接作为订阅链接
+如果链接中只有IP则只替换IP，如果链接中有IP和端口则一起替换
 
-④
-CUSTOM_PORT_ENV
-自定义端口
-
-worker.js=ip:prot  worker-prot.js=aip ip
