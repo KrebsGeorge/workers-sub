@@ -4,7 +4,7 @@ const VLESS_NODES = JSON.parse(VLESS_NODES_ENV); // 从环境变量中获取 VLE
 const AUTH_TOKEN = AUTH_TOKEN_ENV; // 从环境变量中获取授权令牌
 
 // 获取优选 IP 和端口列表
-async function fetchPreferredIP() {
+async function fetchPreferredIPs() {
     const response = await fetch(API_URL);
     if (!response.ok) {
         throw new Error('Failed to fetch IPs');
@@ -25,8 +25,7 @@ async function fetchPreferredIP() {
         throw new Error('No valid IPs found');
     }
 
-    // 随机选择一个 IP 和（可能的）端口
-    return lines[Math.floor(Math.random() * lines.length)];
+    return lines; // 返回所有 IP 和端口的列表
 }
 
 // 替换 VLESS 节点中的 address 和 port
@@ -66,13 +65,19 @@ async function handleRequest(request) {
     }
 
     try {
-        // 获取优选 IP 和端口
-        const { ip, port } = await fetchPreferredIP();
+        // 获取所有优选 IP 和端口
+        const preferredIPs = await fetchPreferredIPs();
 
         // 对每个 VLESS 节点替换 IP 和端口
-        const updatedNodes = VLESS_NODES.map(node => ({
-            updated: replaceVLESSNode(node, ip, port)
-        }));
+        let updatedNodes = [];
+
+        VLESS_NODES.forEach(node => {
+            preferredIPs.forEach(({ ip, port }) => {
+                updatedNodes.push({
+                    updated: replaceVLESSNode(node, ip, port)
+                });
+            });
+        });
 
         // 生成纯文本内容并返回
         const textResponse = buildTextResponse(updatedNodes);
