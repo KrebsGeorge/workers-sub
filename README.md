@@ -1,3 +1,8 @@
+修改姿CMLIU
+  https://github.com/cmliu/WorkerVless2sub
+  https://github.com/cmliu/CF-Workers-SUB
+  
+  
 环境变量
 
 ①
