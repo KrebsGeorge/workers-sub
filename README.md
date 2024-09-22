@@ -1,4 +1,4 @@
-修改自CMLIU
+由CMLIU项目修改
   https://github.com/cmliu/WorkerVless2sub
   https://github.com/cmliu/CF-Workers-SUB
   
