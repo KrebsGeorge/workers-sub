@@ -1,7 +1,23 @@
 // 确保环境变量只声明一次
 const API_URL = API_URL_ENV; // 从环境变量中获取 API URL
-const VLESS_NODES = JSON.parse(VLESS_NODES_ENV); // 从环境变量中获取 VLESS 节点 JSON 数组
 const AUTH_TOKEN = AUTH_TOKEN_ENV; // 从环境变量中获取授权令牌
+
+// 获取 VLESS 节点数据，支持从 URL 或直接从环境变量中获取
+async function fetchVLESSNodes() {
+    let vlessNodes;
+    if (VLESS_NODES_ENV.startsWith('http')) {
+        // 如果 VLESS_NODES_ENV 是 URL，则从该链接获取 JSON 数据
+        const response = await fetch(VLESS_NODES_ENV);
+        if (!response.ok) {
+            throw new Error('Failed to fetch VLESS nodes');
+        }
+        vlessNodes = await response.json();
+    } else {
+        // 如果不是 URL，则直接从环境变量中解析 JSON
+        vlessNodes = JSON.parse(VLESS_NODES_ENV);
+    }
+    return vlessNodes;
+}
 
 // 获取优选 IP 和端口列表
 async function fetchPreferredIPs() {
@@ -65,17 +81,19 @@ async function handleRequest(request) {
     }
 
     try {
+        // 获取 VLESS 节点数据
+        const vlessNodes = await fetchVLESSNodes();
+
         // 获取所有优选 IP 和端口
         const preferredIPs = await fetchPreferredIPs();
 
         // 对每个 VLESS 节点替换 IP 和端口
         let updatedNodes = [];
 
-        VLESS_NODES.forEach(node => {
-            preferredIPs.forEach(({ ip, port }) => {
-                updatedNodes.push({
-                    updated: replaceVLESSNode(node, ip, port)
-                });
+        vlessNodes.forEach(node => {
+            const { ip, port } = preferredIPs[Math.floor(Math.random() * preferredIPs.length)];
+            updatedNodes.push({
+                updated: replaceVLESSNode(node, ip, port)
             });
         });
 
