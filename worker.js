@@ -5,64 +5,80 @@ const AUTH_TOKEN = AUTH_TOKEN_ENV; // 从环境变量中获取授权令牌
 // 获取 VLESS 节点数据，支持从 URL 或直接从环境变量中获取
 async function fetchVLESSNodes() {
     let vlessNodes;
-    if (VLESS_NODES_ENV.startsWith('http')) {
-        // 如果 VLESS_NODES_ENV 是 URL，则从该链接获取 JSON 数据
-        const response = await fetch(VLESS_NODES_ENV);
-        if (!response.ok) {
-            throw new Error('Failed to fetch VLESS nodes');
+    try {
+        if (VLESS_NODES_ENV.startsWith('http')) {
+            // 如果 VLESS_NODES_ENV 是 URL，则从该链接获取 JSON 数据
+            const response = await fetch(VLESS_NODES_ENV);
+            if (!response.ok) {
+                throw new Error('Failed to fetch VLESS nodes');
+            }
+            vlessNodes = await response.json();
+        } else {
+            // 如果不是 URL，则直接从环境变量中解析 JSON
+            vlessNodes = JSON.parse(VLESS_NODES_ENV);
         }
-        vlessNodes = await response.json();
-    } else {
-        // 如果不是 URL，则直接从环境变量中解析 JSON
-        vlessNodes = JSON.parse(VLESS_NODES_ENV);
+    } catch (error) {
+        throw new Error('Invalid VLESS_NODES_ENV format or fetch error');
     }
     return vlessNodes;
 }
 
 // 获取优选 IP 和端口列表
+let cachedIPs = null; // 添加缓存机制
 async function fetchPreferredIPs() {
-    const response = await fetch(API_URL);
-    if (!response.ok) {
-        throw new Error('Failed to fetch IPs');
-    }
-    const text = await response.text();
-    const lines = text.split('\n').map(line => {
-        const cleanLine = line.split('#')[0].trim();
-        const parts = cleanLine.split(':');
-        if (parts.length === 2) {
-            return { ip: parts[0].trim(), port: parts[1].trim() };
-        } else if (parts.length === 1) {
-            return { ip: parts[0].trim(), port: null };
+    if (!cachedIPs) {
+        const response = await fetch(API_URL);
+        if (!response.ok) {
+            throw new Error('Failed to fetch IPs');
         }
-        return null;
-    }).filter(entry => entry && entry.ip);
+        const text = await response.text();
+        const lines = text.split('\n').map(line => {
+            const cleanLine = line.split('#')[0].trim();
+            const parts = cleanLine.split(':');
+            if (parts.length === 2) {
+                return { ip: parts[0].trim(), port: parts[1].trim() };
+            } else if (parts.length === 1) {
+                return { ip: parts[0].trim(), port: null };
+            }
+            return null;
+        }).filter(entry => entry && entry.ip);
 
-    if (lines.length === 0) {
-        throw new Error('No valid IPs found');
+        if (lines.length === 0) {
+            throw new Error('No valid IPs found');
+        }
+
+        cachedIPs = lines; // 缓存 IP 列表
     }
 
-    return lines; // 返回所有 IP 和端口的列表
+    return cachedIPs;
 }
 
-// 替换 VLESS 节点中的 address 和 port
-function replaceVLESSNode(vlessNode, ip, port) {
-    const parts = vlessNode.split('@');
-    if (parts.length < 2) return vlessNode;
+// 替换 VLESS 节点中的所有 address 和 port
+function replaceVLESSNode(vlessNode, ips) {
+    let updatedNodes = [];
 
-    const addressPart = parts[1].split('?')[0];
-    const oldAddressPort = addressPart.split(':');
-    if (oldAddressPort.length < 2) return vlessNode;
+    // 对每个 IP 进行替换
+    ips.forEach(({ ip, port }) => {
+        const parts = vlessNode.split('@');
+        if (parts.length < 2) return;
 
-    const newAddressPort = port ? `${ip}:${port}` : `${ip}:${oldAddressPort[1]}`;
-    const newAddressPart = addressPart.replace(`${oldAddressPort[0]}:${oldAddressPort[1]}`, newAddressPort);
-    const newRest = parts[1].replace(addressPart, newAddressPart);
+        const addressPart = parts[1].split('?')[0];
+        const oldAddressPort = addressPart.split(':');
+        if (oldAddressPort.length < 2) return;
 
-    return `${parts[0]}@${newRest}`;
+        const newAddressPort = port ? `${ip}:${port}` : `${ip}:${oldAddressPort[1]}`;
+        const newAddressPart = addressPart.replace(`${oldAddressPort[0]}:${oldAddressPort[1]}`, newAddressPort);
+        const newRest = parts[1].replace(addressPart, newAddressPart);
+
+        updatedNodes.push(`${parts[0]}@${newRest}`);
+    });
+
+    return updatedNodes;
 }
 
-// 构建纯文本内容，只显示替换结果
+// 构建纯文本内容，显示替换结果
 function buildTextResponse(updatedNodes) {
-    return updatedNodes.map(node => node.updated).join('\n\n').trim();
+    return updatedNodes.map(node => node.join('\n')).join('\n\n').trim();
 }
 
 addEventListener('fetch', event => {
@@ -87,18 +103,16 @@ async function handleRequest(request) {
         // 获取所有优选 IP 和端口
         const preferredIPs = await fetchPreferredIPs();
 
-        // 对每个 VLESS 节点替换 IP 和端口
-        let updatedNodes = [];
+        // 对每个 VLESS 节点替换所有 IP 和端口
+        let allUpdatedNodes = [];
 
         vlessNodes.forEach(node => {
-            const { ip, port } = preferredIPs[Math.floor(Math.random() * preferredIPs.length)];
-            updatedNodes.push({
-                updated: replaceVLESSNode(node, ip, port)
-            });
+            const updatedNodeList = replaceVLESSNode(node, preferredIPs);
+            allUpdatedNodes.push(updatedNodeList);
         });
 
         // 生成纯文本内容并返回
-        const textResponse = buildTextResponse(updatedNodes);
+        const textResponse = buildTextResponse(allUpdatedNodes);
         return new Response(textResponse, {
             headers: { 'Content-Type': 'text/plain' }
         });
